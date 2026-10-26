@@ -452,7 +452,8 @@ void RimeWithWeaselHandler::_ReadClientInfo(WeaselSessionId ipc_id,
 }
 
 void RimeWithWeaselHandler::_GetCandidateInfo(CandidateInfo& cinfo,
-                                              RimeContext& ctx) {
+                                              RimeContext& ctx,
+                                              RimeSessionId session_id) {
   cinfo.candies.resize(ctx.menu.num_candidates);
   cinfo.comments.resize(ctx.menu.num_candidates);
   cinfo.labels.resize(ctx.menu.num_candidates);
@@ -472,6 +473,10 @@ void RimeWithWeaselHandler::_GetCandidateInfo(CandidateInfo& cinfo,
     }
   }
   cinfo.highlighted = ctx.menu.highlighted_candidate_index;
+  // A schema may ask for no highlighted candidate (e.g. until the user moves
+  // the selection with arrow keys) by setting the option "_no_highlight".
+  if (session_id && rime_api->get_option(session_id, "_no_highlight"))
+    cinfo.highlighted = -1;
   cinfo.currentPage = ctx.menu.page_no;
   cinfo.is_last_page = ctx.menu.is_last_page;
 }
@@ -799,7 +804,7 @@ bool RimeWithWeaselHandler::_Respond(WeaselSessionId ipc_id, EatLine eat) {
     bool has_candidates = ctx.menu.num_candidates > 0;
     CandidateInfo cinfo;
     if (has_candidates) {
-      _GetCandidateInfo(cinfo, ctx);
+      _GetCandidateInfo(cinfo, ctx, session_id);
     }
     if (is_composing) {
       const auto& preedit = ctx.composition.preedit;
@@ -867,9 +872,8 @@ bool RimeWithWeaselHandler::_Respond(WeaselSessionId ipc_id, EatLine eat) {
             }
             std::wstring comment_w =
                 comment_valid ? cinfo.comments.at(i).str : std::wstring();
-            std::wstring prefix_w = (i != ctx.menu.highlighted_candidate_index)
-                                        ? std::wstring()
-                                        : mark_text_w;
+            std::wstring prefix_w =
+                (i != cinfo.highlighted) ? std::wstring() : mark_text_w;
             body.append(L" ")
                 .append(prefix_w)
                 .append(escape_string(label_w))
@@ -1490,7 +1494,7 @@ void RimeWithWeaselHandler::_GetContext(Context& weasel_context,
     }
     if (ctx.menu.num_candidates) {
       CandidateInfo& cinfo(weasel_context.cinfo);
-      _GetCandidateInfo(cinfo, ctx);
+      _GetCandidateInfo(cinfo, ctx, session_id);
     }
     rime_api->free_context(&ctx);
   }

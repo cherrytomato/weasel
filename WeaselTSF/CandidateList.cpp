@@ -113,7 +113,8 @@ STDMETHODIMP CCandidateList::GetCount(UINT* pCandidateCount) {
 }
 
 STDMETHODIMP CCandidateList::GetSelection(UINT* pSelectedCandidateIndex) {
-  *pSelectedCandidateIndex = _ui->ctx().cinfo.highlighted;
+  const int highlighted = _ui->ctx().cinfo.highlighted;
+  *pSelectedCandidateIndex = highlighted < 0 ? 0 : highlighted;
   return S_OK;
 }
 
